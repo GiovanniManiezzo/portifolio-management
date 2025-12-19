@@ -73,9 +73,21 @@ else:
         for col, (_, data_row) in zip(cols, row_slice.iterrows()):
             delta_value = f"R$ {data_row['total_pnl']:,.2f}"
             col.metric(
-                f"{data_row['Classe']}",
-                f"{data_row['Rentabilidade (%)']:.2f}%",
-                delta=delta_value
+            rent_value = data_row['Rentabilidade (%)']
+            font_color = "#d13232" if rent_value < 0 else "#1a7f37"
+            pnl_text = f"R$ {data_row['total_pnl']:,.2f}"
+            rent_text = f"{rent_value:.2f}%"
+            label = data_row['Classe']
+            # Custom block to control text color based on performance
+            col.markdown(
+                f"""
+                <div style='padding:12px 16px;border:1px solid #e0e0e0;border-radius:8px;'>
+                    <div style='font-size:0.85rem;color:#666;'>{label}</div>
+                    <div style='font-size:1.4rem;font-weight:600;color:{font_color};'>{rent_text}</div>
+                    <div style='font-size:0.9rem;color:#999;'>P&L: {pnl_text}</div>
+                </div>
+                """,
+                unsafe_allow_html=True
             )
 
 st.markdown("---")
