@@ -325,10 +325,11 @@ def main():
             pnl_reais *= -1
             rentabilidade_pct *= -1
 
+        vencimento = row.get('Vencimento', '')
         results.append([
             ticker, classe, currency, qty, avg_price, 
             final_price, total_native, total_brl, 
-            pnl_reais, rentabilidade_pct, # <--- Essas são as colunas que faltavam
+            pnl_reais, rentabilidade_pct, vencimento,
             datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         ])
         
@@ -342,7 +343,7 @@ def main():
         ws_prices.append_row([
             "Ticker", "Classe", "Moeda", "Quantidade", "Preço Médio", 
             "Preço Atual", "Total (Moeda Origem)", "Total (BRL)", 
-            "Lucro/Prej (R$)", "Rentabilidade (%)", "Atualização"
+            "Lucro/Prej (R$)", "Rentabilidade (%)", "Vencimento", "Atualização"
         ])
         ws_prices.append_rows(results)
         print("--- Sucesso! Dados exportados para aba 'prices' ---")

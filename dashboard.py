@@ -150,12 +150,12 @@ if 'Vencimento' in df.columns:
 
         fig_timeline = px.bar(
             df_timeline, 
-            x='Vencimento_Dt', 
+            x='Vencimento', 
             y='Total (BRL)', 
             color='Categoria_Visual', # Usa a nova categoria
             text='Total (BRL)',
             title="Fluxo de Caixa (Reserva vs Vencimentos Futuros)",
-            labels={'Vencimento_Dt': 'Data de Disponibilidade', 'Total (BRL)': 'Valor Líquido'}
+            labels={'Vencimento': 'Data de Disponibilidade', 'Total (BRL)': 'Valor Líquido'}
         )
         
         # Ajustes visuais
@@ -171,7 +171,7 @@ if 'Vencimento' in df.columns:
         st.caption("Próximos Resgates:")
         cols_show = ['Vencimento', 'Ticker', 'Classe', 'Total (BRL)']
         st.dataframe(
-            df_timeline[cols_show].sort_values(by='Vencimento_Dt').head(5),
+            df_timeline[cols_show].sort_values(by='Vencimento').head(5),
             hide_index=True
         )
     else:
