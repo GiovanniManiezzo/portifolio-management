@@ -134,13 +134,13 @@ if 'Vencimento' in df.columns:
         return pd.to_datetime(val, errors='coerce')
 
     # Cria coluna auxiliar de data
-    df_timeline['Vencimento_Dt'] = df_timeline['Vencimento'].apply(converter_data_vencimento)
+    df_timeline['Vencimento'] = df_timeline['Vencimento'].apply(converter_data_vencimento)
     
     # Remove linhas onde não conseguimos determinar uma data (ex: ações vazias)
-    df_timeline = df_timeline.dropna(subset=['Vencimento_Dt'])
+    df_timeline = df_timeline.dropna(subset=['Vencimento'])
     
     if not df_timeline.empty:
-        df_timeline = df_timeline.sort_values(by='Vencimento_Dt')
+        df_timeline = df_timeline.sort_values(by='Vencimento')
 
         # Cria categoria visual para pintar a Reserva de vermelho e o resto pela Classe
         df_timeline['Categoria_Visual'] = df_timeline.apply(
