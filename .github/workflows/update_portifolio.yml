@@ -1,0 +1,33 @@
+name: Daily Portfolio Update (Weekdays)
+
+on:
+  schedule:
+    # Roda de seg a sex às 21:00 UTC (18:00 Brasil)
+    - cron: '0 21 * * 1-5'
+  workflow_dispatch: # Permite rodar manualmente clicando num botão
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Baixar código do repositório
+        uses: actions/checkout@v3
+
+      - name: Configurar Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Criar arquivo credentials.json
+        # Aqui a mágica acontece: O GitHub pega o segredo e cria o arquivo pro script ler
+        run: |
+          echo '${{ secrets.credentials_sheets }}' > credentials.json
+
+      - name: Instalar dependências
+        run: |
+          pip install -r requirements.txt
+
+      - name: Rodar Script de Atualização
+        # Substitua 'seu_script_de_extracao.py' pelo nome do seu arquivo Python que atualiza o Sheets
+        run: python update_prices.py
