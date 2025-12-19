@@ -142,6 +142,96 @@ def get_usd_brl_rate():
         return float(yf.Ticker("BRL=X").info.get('regularMarketPrice', 5.0))
     except:
         return 5.0 # Fallback de segurança
+    
+# --- CACHE DA TAXA CDI ---
+# Variável global para não chamar a API do Banco Central 50 vezes
+CURRENT_CDI_RATE = None
+
+def get_current_cdi():
+    """Busca a Taxa Selic/CDI Anualizada atual no Banco Central."""
+    global CURRENT_CDI_RATE
+    if CURRENT_CDI_RATE is not None:
+        return CURRENT_CDI_RATE
+        
+    try:
+        # API do BCB para a série 1178 (Selic anualizada)
+        url = "https://api.bcb.gov.br/dados/serie/bcdata.sgs.1178/dados/ultimos/1?formato=json"
+        response = requests.get(url, timeout=5)
+        data = response.json()
+        rate = float(data[0]['valor']) / 100 # Vem 11.25, vira 0.1125
+        CURRENT_CDI_RATE = rate
+        print(f"   [INFO] Taxa CDI/Selic Atual: {rate*100:.2f}% a.a.")
+        return rate
+    except Exception as e:
+        print(f"   [WARN] Falha ao buscar CDI: {e}. Usando fallback 14.9%.")
+        return 0.149
+
+def calculate_fixed_income(valor_inicial, data_inicio, indexador):
+    """
+    Calcula o Valor Presente estimado baseada em Juros Compostos.
+    Suporta: '105% CDI', '12% PRE'.
+    """
+    if not data_inicio or not indexador:
+        return valor_inicial
+
+    # 1. Calcular o Tempo (em Anos)
+    try:
+        dt_start = datetime.strptime(str(data_inicio), "%Y-%m-%d")
+        print(dt_start)
+        dt_now = datetime.now()
+        print(dt_now)
+        days_diff = (dt_now - dt_start).days
+        print("diff: ", days_diff)
+        years = days_diff / 365.25 # Aproximação calendário
+    except ValueError:
+        print(f"   [ERRO] Formato de data inválido: {data_inicio}")
+        return valor_inicial
+
+    if days_diff < 0: return valor_inicial
+
+    # 2. Decodificar o Indexador
+    indexador = str(indexador).upper().replace(' ', '').replace(',', '.')
+    
+    annual_rate = 0.0
+    
+    # Lógica para Pós-Fixado (CDI)
+    if 'CDI' in indexador:
+        # Ex: "105%CDI" -> pega 105, divide por 100, multiplica pela taxa Selic atual
+        percentage_str = indexador.split('%CDI')[0]
+        print("percentage_str:", percentage_str)
+        try:
+            percent_cdi = float(percentage_str) / 100
+            market_rate = get_current_cdi()
+            print("market_rate:", market_rate)
+            annual_rate = market_rate * percent_cdi
+        except:
+            annual_rate = 0.10 # Fallback 10%
+
+    # Lógica para Pré-Fixado (PRE)
+    elif 'PRE' in indexador:
+        # Ex: "12.5%PRE"
+        percentage_str = indexador.split('%PRE')[0]
+        try:
+            annual_rate = float(percentage_str) / 100
+        except:
+            annual_rate = 0.10
+
+    elif 'IPCA+' in indexador:
+        # Assumimos IPCA constante de 0.3% a.m. e spread real informado no indexador
+        ipca_monthly_rate = 0.003
+        ipca_annual_rate = (1 + ipca_monthly_rate) ** 12 - 1
+        try:
+            spread_part = indexador.split('IPCA+')[1].replace('%', '')
+            spread_rate = float(spread_part) / 100
+        except:
+            spread_rate = 0.0
+        annual_rate = ((1 + ipca_annual_rate) * (1 + spread_rate)) - 1
+
+    # 3. Fórmula dos Juros Compostos: M = C * (1 + i)^t
+    # Onde t está em anos
+    valor_atual = valor_inicial * ((1 + annual_rate) ** years)
+    
+    return valor_atual
 
 # --- ORQUESTRAÇÃO ---
 def main():
@@ -153,7 +243,7 @@ def main():
     df = pd.DataFrame(ws_wallet.get_all_records())
     
     # Validar se colunas existem
-    required_cols = ['Ticker', 'Classe', 'Quantidade', 'Moeda', 'Preço Médio', 'Manual Price', 'Direção']
+    required_cols = ['Ticker', 'Classe', 'Quantidade', 'Moeda', 'Preço Médio', 'Manual Price', 'Direção', 'Data Início', 'Indexador']
     if not all(col in df.columns for col in required_cols):
         print(f"[ERRO] Colunas faltando. Necessario: {required_cols}")
         return
@@ -172,6 +262,8 @@ def main():
         manual_price = float(row['Manual Price'] or 0)
         direction = str(row.get('Direção', 'C')).strip().upper() or 'C'
         direction = direction if direction in ['C', 'V'] else 'C'
+        start_date = row.get('Data Início', '')
+        indexer = row.get('Indexador', '')
         
         current_price = 0.0
         
@@ -191,35 +283,52 @@ def main():
             current_price = get_crypto_price(ticker)
         
         elif classe == 'RendaFixa':
-            # Renda Fixa é complexa para automatizar free. 
-            # Estratégia: Usar valor manual inserido pelo usuário na coluna F.
-            current_price = manual_price if manual_price > 0 else avg_price
+            # O "Preço Atual" na Renda Fixa não é o valor de mercado unitário,
+            # mas sim o Valor Total Atualizado dividido pela quantidade.
+            # Se Qty = 1, Preço Atual = Valor Total.
+            
+            # 1. Calcula o Valor Total investido inicialmente neste aporte
+            investimento_inicial = qty * avg_price
+            
+            # 2. Calcula quanto esse dinheiro vale hoje
+            valor_atualizado_total = calculate_fixed_income(investimento_inicial, start_date, indexer)
+            
+            # 3. Reconverte para "Preço Unitário" para manter a lógica da planilha
+            current_price = valor_atualizado_total / qty if qty > 0 else 0.0
+            
+            print(f"   -> RF Calculada: R$ {investimento_inicial:.2f} virou R$ {valor_atualizado_total:.2f}")
         
         else:
             current_price = 0.0 # Classe desconhecida
         
         # CÁLCULOS FINANCEIROS
-        # Se preço veio zerado da API, usa o manual ou o médio para não zerar patrimônio
+        # Se falhou tudo, usa manual ou médio
         final_price = current_price if current_price > 0 else (manual_price if manual_price > 0 else avg_price)
-        total_native = qty * final_price
         
-        # Conversão para BRL
-        rate = usd_rate if currency == 'USD' else 1.0
-        total_brl = total_native * rate
+        # Total na moeda do ativo
+        total_native = qty * final_price 
         
-        # Lucro/Prejuízo Estimado
-        cost_basis = qty * avg_price * rate
-        pnl = total_brl - cost_basis
-        pnl_percent = (pnl / cost_basis) if cost_basis > 0 else 0
+        # Conversão BRL (Se for USD)
+        rate_cambio = usd_rate if currency == 'USD' else 1.0
+        total_brl = total_native * rate_cambio
+        
+        # Lucro/Prejuízo e Rentabilidade
+        cost_basis = qty * avg_price * rate_cambio # Quanto gastei
+        pnl_reais = total_brl - cost_basis
+        
+        if cost_basis > 0:
+            rentabilidade_pct = (pnl_reais / cost_basis) * 100 # Em porcentagem (ex: 15.5)
+        else:
+            rentabilidade_pct = 0.0
 
         if classe == 'Opcao' and direction == 'V':
-            pnl *= -1
-            pnl_percent *= -1
+            pnl_reais *= -1
+            rentabilidade_pct *= -1
 
         results.append([
-            ticker, classe, direction, currency, qty, avg_price, 
+            ticker, classe, currency, qty, avg_price, 
             final_price, total_native, total_brl, 
-            pnl, pnl_percent, 
+            pnl_reais, rentabilidade_pct, # <--- Essas são as colunas que faltavam
             datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         ])
         
@@ -231,7 +340,7 @@ def main():
         ws_prices.clear()
         # Headers ricos para o Power BI
         ws_prices.append_row([
-            "Ticker", "Classe", "Direção", "Moeda", "Quantidade", "Preço Médio", 
+            "Ticker", "Classe", "Moeda", "Quantidade", "Preço Médio", 
             "Preço Atual", "Total (Moeda Origem)", "Total (BRL)", 
             "Lucro/Prej (R$)", "Rentabilidade (%)", "Atualização"
         ])

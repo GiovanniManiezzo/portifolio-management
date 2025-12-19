@@ -30,28 +30,53 @@ def load_data():
     ws = sh.worksheet("prices")
     df = pd.DataFrame(ws.get_all_records())
     
-    # Lê a aba de preços
-    ws = sh.worksheet("prices")
-    df = pd.DataFrame(ws.get_all_records())
-    
     # Tratamento de tipos
-    df['Total (BRL)'] = pd.to_numeric(df['Total (BRL)'])
-    df['Rentabilidade (%)'] = pd.to_numeric(df['Rentabilidade (%)'])
+    numeric_cols = ['Total (BRL)', 'Rentabilidade (%)', 'Lucro/Prej (R$)']
+    for col in numeric_cols:
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
     return df
 
 
 df = load_data()
 
+if df.empty:
+    st.warning("Sem dados para exibir. Verifique a planilha 'prices'.")
+    st.stop()
+
+class_summary = df.groupby('Classe').agg(
+    total_brl=('Total (BRL)', 'sum'),
+    total_pnl=('Lucro/Prej (R$)', 'sum')
+).reset_index()
+class_summary['Rentabilidade (%)'] = class_summary.apply(
+    lambda row: (row['total_pnl'] / row['total_brl']) * 100 if row['total_brl'] else 0.0,
+    axis=1
+)
+
 # --- CABEÇALHO (BIG NUMBERS) ---
 st.title("💰 Painel de Controle Financeiro")
 
 total_patrimonio = df['Total (BRL)'].sum()
-lucro_medio = df['Rentabilidade (%)'].mean() * 100 # Simplificação
 
-col1, col2, col3 = st.columns(3)
+col1, col2 = st.columns(2)
 col1.metric("Patrimônio Total", f"R$ {total_patrimonio:,.2f}")
-col2.metric("Rentabilidade Média", f"{lucro_medio:.2f}%")
-col3.metric("Ativos na Carteira", len(df))
+col2.metric("Ativos na Carteira", len(df))
+
+st.subheader("Rentabilidade por Classe")
+if class_summary.empty:
+    st.info("Nenhuma classe de ativo encontrada.")
+else:
+    cols_per_row = 4
+    for start in range(0, len(class_summary), cols_per_row):
+        row_slice = class_summary.iloc[start:start + cols_per_row]
+        cols = st.columns(len(row_slice))
+        for col, (_, data_row) in zip(cols, row_slice.iterrows()):
+            delta_value = f"R$ {data_row['total_pnl']:,.2f}"
+            col.metric(
+                f"{data_row['Classe']}",
+                f"{data_row['Rentabilidade (%)']:.2f}%",
+                delta=delta_value
+            )
 
 st.markdown("---")
 
