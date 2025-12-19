@@ -7,13 +7,28 @@ import gspread
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="Investimentos", layout="wide")
 
+def connect_google_sheets():
+    # Tenta conectar via Streamlit Secrets (Nuvem)
+    if "gcp_service_account" in st.secrets:
+        return gspread.service_account_from_dict(st.secrets["gcp_service_account"])
+    
+    # Se falhar, tenta conectar via arquivo local (Seu PC)
+    try:
+        return gspread.service_account(filename='credentials.json')
+    except:
+        st.error("Não foi possível encontrar as credenciais (Secrets ou JSON local).")
+        return None
+
+
 # --- FUNÇÃO DE CARGA (COM CACHE PARA NÃO LER TODA HORA) ---
 def load_data():
-    # Conecta no Google Sheets (mesma lógica do seu script anterior)
-    # Dica: No Streamlit Cloud, você guarda as credenciais em "Secrets"
-    # Para teste local, aponte para o credentials.json
-    gc = gspread.service_account(filename='credentials.json')
-    sh = gc.open("Investimentos_Master")
+
+    gc = connect_google_sheets()
+    if not gc: return pd.DataFrame() # Retorna vazio se falhar
+
+    sh = gc.open("Investimentos_Master") # Nome exato da planilha
+    ws = sh.worksheet("prices")
+    df = pd.DataFrame(ws.get_all_records())
     
     # Lê a aba de preços
     ws = sh.worksheet("prices")
