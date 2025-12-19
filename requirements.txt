@@ -1,5 +1,7 @@
-streamlit
-pandas
-plotly
 gspread
-google-auth
+oauth2client
+pandas
+yfinance
+ccxt
+requests
+beautifulsoup4
