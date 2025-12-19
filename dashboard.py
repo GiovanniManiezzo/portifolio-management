@@ -71,8 +71,6 @@ else:
         row_slice = class_summary.iloc[start:start + cols_per_row]
         cols = st.columns(len(row_slice))
         for col, (_, data_row) in zip(cols, row_slice.iterrows()):
-            delta_value = f"R$ {data_row['total_pnl']:,.2f}"
-            col.metric(
             rent_value = data_row['Rentabilidade (%)']
             font_color = "#d13232" if rent_value < 0 else "#1a7f37"
             pnl_text = f"R$ {data_row['total_pnl']:,.2f}"
