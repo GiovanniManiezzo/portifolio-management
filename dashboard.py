@@ -39,45 +39,42 @@ def load_data():
     df['Rentabilidade (%)'] = pd.to_numeric(df['Rentabilidade (%)'])
     return df
 
-try:
-    df = load_data()
-    
-    # --- CABEÇALHO (BIG NUMBERS) ---
-    st.title("💰 Painel de Controle Financeiro")
-    
-    total_patrimonio = df['Total (BRL)'].sum()
-    lucro_medio = df['Rentabilidade (%)'].mean() * 100 # Simplificação
-    
-    col1, col2, col3 = st.columns(3)
-    col1.metric("Patrimônio Total", f"R$ {total_patrimonio:,.2f}")
-    col2.metric("Rentabilidade Média", f"{lucro_medio:.2f}%")
-    col3.metric("Ativos na Carteira", len(df))
-    
-    st.markdown("---")
 
-    # --- GRÁFICOS ---
-    col_chart1, col_chart2 = st.columns(2)
+df = load_data()
+
+# --- CABEÇALHO (BIG NUMBERS) ---
+st.title("💰 Painel de Controle Financeiro")
+
+total_patrimonio = df['Total (BRL)'].sum()
+lucro_medio = df['Rentabilidade (%)'].mean() * 100 # Simplificação
+
+col1, col2, col3 = st.columns(3)
+col1.metric("Patrimônio Total", f"R$ {total_patrimonio:,.2f}")
+col2.metric("Rentabilidade Média", f"{lucro_medio:.2f}%")
+col3.metric("Ativos na Carteira", len(df))
+
+st.markdown("---")
+
+# --- GRÁFICOS ---
+col_chart1, col_chart2 = st.columns(2)
+
+with col_chart1:
+    st.subheader("Alocação por Classe")
+    fig_pizza = px.pie(df, values='Total (BRL)', names='Classe', hole=0.4)
+    st.plotly_chart(fig_pizza, use_container_width=True)
     
-    with col_chart1:
-        st.subheader("Alocação por Classe")
-        fig_pizza = px.pie(df, values='Total (BRL)', names='Classe', hole=0.4)
-        st.plotly_chart(fig_pizza, use_container_width=True)
-        
-    with col_chart2:
-        st.subheader("Top Rentabilidade")
-        # Filtra os top 10 e ordena
-        top_winners = df.sort_values(by='Rentabilidade (%)', ascending=False).head(10)
-        fig_bar = px.bar(top_winners, x='Rentabilidade (%)', y='Ticker', orientation='h', 
-                         color='Rentabilidade (%)', color_continuous_scale='Bluered_r')
-        st.plotly_chart(fig_bar, use_container_width=True)
+with col_chart2:
+    st.subheader("Top Rentabilidade")
+    # Filtra os top 10 e ordena
+    top_winners = df.sort_values(by='Rentabilidade (%)', ascending=False).head(10)
+    fig_bar = px.bar(top_winners, x='Rentabilidade (%)', y='Ticker', orientation='h', 
+                        color='Rentabilidade (%)', color_continuous_scale='Bluered_r')
+    st.plotly_chart(fig_bar, use_container_width=True)
 
-    # --- TABELA DETALHADA ---
-    st.subheader("Detalhamento")
-    st.dataframe(df)
+# --- TABELA DETALHADA ---
+st.subheader("Detalhamento")
+st.dataframe(df)
 
-    if st.button('Atualizar Dados'):
-        st.cache_data.clear()
-        st.rerun()
-
-except Exception as e:
-    st.error(f"Erro ao carregar dados: {e}")
+if st.button('Atualizar Dados'):
+    st.cache_data.clear()
+    st.rerun()
