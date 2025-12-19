@@ -26,7 +26,7 @@ def load_data():
     gc = connect_google_sheets()
     if not gc: return pd.DataFrame() # Retorna vazio se falhar
 
-    sh = gc.open("Investimentos_Master") # Nome exato da planilha
+    sh = gc.open("portifolio-management-sheet") # Nome exato da planilha
     ws = sh.worksheet("prices")
     df = pd.DataFrame(ws.get_all_records())
     
