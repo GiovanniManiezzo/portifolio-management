@@ -134,28 +134,28 @@ if 'Vencimento' in df.columns:
         return pd.to_datetime(val, errors='coerce')
 
     # Cria coluna auxiliar de data
-    df_timeline['Vencimento'] = df_timeline['Vencimento'].apply(converter_data_vencimento)
+    df_timeline['Vencimento_liq'] = df_timeline['Vencimento'].apply(converter_data_vencimento)
     
     # Remove linhas onde não conseguimos determinar uma data (ex: ações vazias)
-    df_timeline = df_timeline.dropna(subset=['Vencimento'])
+    df_timeline = df_timeline.dropna(subset=['Vencimento_liq'])
     
     if not df_timeline.empty:
-        df_timeline = df_timeline.sort_values(by='Vencimento')
+        df_timeline = df_timeline.sort_values(by='Vencimento_liq')
 
         # Cria categoria visual para pintar a Reserva de vermelho e o resto pela Classe
         df_timeline['Categoria_Visual'] = df_timeline.apply(
-            lambda x: '🚨 RESERVA' if str(x['Vencimento']).strip().lower() == 'liquido' else x['Classe'], 
+            lambda x: '🚨 RESERVA' if str(x['Vencimento_liq']).strip().lower() == 'liquido' else x['Ticker'], 
             axis=1
         )
 
         fig_timeline = px.bar(
             df_timeline, 
-            x='Vencimento', 
+            x='Vencimento_liq', 
             y='Total (BRL)', 
             color='Categoria_Visual', # Usa a nova categoria
             text='Total (BRL)',
             title="Fluxo de Caixa (Reserva vs Vencimentos Futuros)",
-            labels={'Vencimento': 'Data de Disponibilidade', 'Total (BRL)': 'Valor Líquido'}
+            labels={'Vencimento_liq': 'Data de Disponibilidade', 'Total (BRL)': 'Valor Líquido'}
         )
         
         # Ajustes visuais
