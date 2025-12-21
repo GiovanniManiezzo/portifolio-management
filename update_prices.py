@@ -350,5 +350,61 @@ def main():
     except Exception as e:
         print(f"[ERRO CRÍTICO] Falha ao salvar: {e}")
 
+    # --- GRAVAÇÃO DE HISTÓRICO RICO (Patrimônio + Rentabilidade) ---
+    print("--- Gerando Histórico Completo ---")
+    try:
+        ws_history = sh.worksheet("history")
+        today = datetime.now().strftime("%Y-%m-%d")
+        
+        # Recria DataFrame com os dados frescos
+        # Índices baseados na lista 'results': 
+        # [7]=Total(BRL), [8]=Lucro/Prej(R$)
+        # Se sua ordem mudou, confirme os índices!
+        df_current = pd.DataFrame(results, columns=[
+            "Ticker", "Classe", "Moeda", "Quantidade", "Preço Médio", 
+            "Preço Atual", "Total (Moeda Origem)", "Total (BRL)", 
+            "Lucro/Prej (R$)", "Rentabilidade (%)", "Vencimento", "Atualização"
+        ])
+        
+        history_rows = []
+        
+        # Função auxiliar para montar a linha
+        def montar_linha(nome_categoria, df_filtrado):
+            patrimonio = df_filtrado["Total (BRL)"].sum()
+            lucro_total = df_filtrado["Lucro/Prej (R$)"].sum()
+            
+            # O investido é o valor atual menos o lucro (ou mais o prejuízo)
+            investido = patrimonio - lucro_total
+            
+            # Evita divisão por zero
+            rentab_perc = (lucro_total / investido * 100) if investido > 0 else 0.0
+            
+            return [
+                today,
+                nome_categoria,
+                patrimonio,
+                investido,
+                lucro_total,
+                rentab_perc
+            ]
+
+        # 1. Linha do TOTAL GERAL
+        history_rows.append(montar_linha("Total Geral", df_current))
+        
+        # 2. Linhas por CATEGORIA (Agrupamento)
+        categorias = df_current["Classe"].unique()
+        for cat in categorias:
+            df_cat = df_current[df_current["Classe"] == cat]
+            history_rows.append(montar_linha(cat, df_cat))
+            
+        # 3. Salva no Google Sheets
+        ws_history.append_rows(history_rows)
+        print(f"   -> Historico salvo para {today} com dados de rentabilidade.")
+        
+    except Exception as e:
+        print(f"[ERRO HISTORICO] Falha ao salvar: {e}")
+
+    print("--- Fim da Execução ---")
+
 if __name__ == "__main__":
     main()

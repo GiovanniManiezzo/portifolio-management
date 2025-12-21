@@ -181,6 +181,68 @@ else:
 
 st.markdown("---")
 
+# --- SEÇÃO NOVA: EVOLUÇÃO HISTÓRICA ---
+st.markdown("---")
+st.subheader("📈 Evolução Histórica (Patrimônio & Rentabilidade)")
+
+df_history = load_history()
+
+if not df_history.empty and 'Total Geral' in df_history['Categoria'].values:
+    # Cria abas para os gráficos históricos
+    tab1, tab2, tab3 = st.tabs(["💰 Patrimônio vs Investido", "🚀 Rentabilidade (%)", "📊 Composição da Carteira"])
+    
+    # Separa dados do Total Geral
+    df_total_hist = df_history[df_history['Categoria'] == 'Total Geral'].sort_values('Data')
+    
+    with tab1:
+        if not df_total_hist.empty:
+            # Gráfico comparativo: Quanto tenho vs Quanto tirei do bolso
+            fig_pat = px.line(df_total_hist, x='Data', y=['Patrimonio', 'Investido'], 
+                              title="Crescimento Real (Linha Verde acima da Azul = Lucro)",
+                              markers=True, 
+                              color_discrete_map={"Patrimonio": "#00CC96", "Investido": "#636EFA"})
+            st.plotly_chart(fig_pat, use_container_width=True)
+        else:
+            st.info("Aguardando mais dados históricos do Total Geral.")
+
+    with tab2:
+        if not df_total_hist.empty:
+            # Gráfico de Linha da Rentabilidade %
+            fig_rent = px.line(df_total_hist, x='Data', y='Rentabilidade_%',
+                               title="Histórico de Rentabilidade Acumulada (%)",
+                               markers=True)
+            
+            # Adiciona linha zero para referência
+            fig_rent.add_hline(y=0, line_dash="dash", line_color="gray")
+            
+            # Define cor da linha baseada no valor atual
+            last_val = df_total_hist.iloc[-1]['Rentabilidade_%'] if not df_total_hist.empty else 0
+            cor_linha = "#1a7f37" if last_val >= 0 else "#d13232"
+            
+            fig_rent.update_traces(line_color=cor_linha)
+            fig_rent.update_layout(yaxis_title="Rentabilidade (%)")
+            
+            st.plotly_chart(fig_rent, use_container_width=True)
+        else:
+            st.info("Aguardando dados de rentabilidade.")
+
+    with tab3:
+        # Gráfico de área empilhada por categoria (Exclui Total Geral)
+        df_cats_hist = df_history[df_history['Categoria'] != 'Total Geral'].sort_values('Data')
+        
+        if not df_cats_hist.empty:
+            fig_area = px.area(df_cats_hist, x='Data', y='Patrimonio', color='Categoria',
+                               title="Evolução da Composição por Classe",
+                               labels={'Patrimonio': 'Valor (R$)'})
+            st.plotly_chart(fig_area, use_container_width=True)
+        else:
+            st.info("Aguardando dados detalhados por categoria.")
+
+else:
+    st.info("ℹ️ O histórico está vazio ou ainda não foi gerado. Aguarde a execução automática das 18h ou rode o script manualmente para ver os gráficos surgirem.")
+
+st.markdown("---")
+
 # --- TABELA DETALHADA ---
 st.subheader("Detalhamento Completo")
 st.dataframe(df)
