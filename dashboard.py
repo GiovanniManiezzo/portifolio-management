@@ -185,6 +185,28 @@ st.markdown("---")
 st.markdown("---")
 st.subheader("📈 Evolução Histórica (Patrimônio & Rentabilidade)")
 
+def load_history():
+    gc = connect_google_sheets()
+    if not gc: return pd.DataFrame()
+    
+    try:
+        ws = gc.open("portifolio-management-sheet").worksheet("history")
+        data = ws.get_all_records()
+        df_h = pd.DataFrame(data)
+        
+        # Conversão de tipos
+        df_h['Valor'] = pd.to_numeric(df_h['Valor'], errors='coerce')
+        df_h['Data'] = pd.to_datetime(df_h['Data'], errors='coerce')
+        
+        # TRATAMENTO DE DUPLICATAS (O Pulo do Gato)
+        # Se rodou o script 2x no mesmo dia, pega apenas o último registro de cada categoria/dia
+        df_h = df_h.sort_values('Data').drop_duplicates(subset=['Data', 'Categoria'], keep='last')
+        
+        return df_h
+    except Exception as e:
+        st.error(f"Erro ao ler histórico: {e}")
+        return pd.DataFrame()
+
 df_history = load_history()
 
 if not df_history.empty and 'Total Geral' in df_history['Categoria'].values:
