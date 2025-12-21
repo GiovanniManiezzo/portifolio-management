@@ -195,7 +195,10 @@ def load_history():
         df_h = pd.DataFrame(data)
         
         # Conversão de tipos
-        df_h['Valor'] = pd.to_numeric(df_h['Valor'], errors='coerce')
+        df_h['Patrimonio'] = pd.to_numeric(df_h['Patrimonio'], errors='coerce')
+        df_h['Investido'] = pd.to_numeric(df_h['Investido'], errors='coerce')
+        df_h['Rentabilidade_%'] = pd.to_numeric(df_h['Rentabilidade_%'], errors='coerce')
+        df_h['Resultado_R$'] = pd.to_numeric(df_h['Resultado_R$'], errors='coerce')
         df_h['Data'] = pd.to_datetime(df_h['Data'], errors='coerce')
         
         # TRATAMENTO DE DUPLICATAS (O Pulo do Gato)
