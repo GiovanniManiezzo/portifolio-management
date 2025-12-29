@@ -17,7 +17,7 @@ jobs:
       - name: Configurar Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.9'
+          python-version: '3.10'
 
       - name: Criar arquivo credentials.json
         # Aqui a mágica acontece: O GitHub pega o segredo e cria o arquivo pro script ler
